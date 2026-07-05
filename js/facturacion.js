@@ -7,6 +7,7 @@ const state = {
   descUSD: 0,
   descBS: 0,
   compraExitosa: false,
+  clienteCompleto: false,
 };
 
 const inputVendedor = document.getElementById("nameVendedor");
@@ -36,18 +37,15 @@ window.addEventListener("DOMContentLoaded", () => {
   if (modal) {
     modal.showModal();
 
+    // Si el usuario cierra el modal con la tecla ESC, se trata igual que
+    // "Omitir por ahora": puede continuar, pero los datos quedarán pendientes.
     modal.addEventListener("cancel", (event) => {
-      const name = document.getElementById("nameClient").value.trim();
-      const documentID = document.getElementById("documentID").value.trim();
-
-      if (!name || !documentID) {
-        event.preventDefault();
-        alert(
-          "Debe registrar los datos del cliente para continuar con la factura.",
-        );
-      }
+      event.preventDefault();
+      omitirDatosCliente();
     });
   }
+
+  actualizarResumenCliente();
 
   // Inicializadores
   calcularPrecioTotal();
@@ -91,7 +89,6 @@ function formatPhone(input) {
 
 //--- GUARDAR DATA-CLIENT E IMPRIMIR EN FACTURA ---//
 function dataClientSave() {
-  const data = document.getElementById("data-client");
   const name = document.getElementById("nameClient").value.trim();
   const secondName = document.getElementById("secondNameClient").value.trim();
   const documentID = document.getElementById("documentID").value.trim();
@@ -115,17 +112,68 @@ function dataClientSave() {
     return;
   }
 
-  data.innerHTML = `
-    <div>
-      <p><strong>Cliente:</strong> ${name} ${secondName}</p>
-      <p><strong>C.I. / RIF:</strong> ${documentID}</p>
-      <p><strong>Teléfono:</strong> ${numberPhone}</p>
-    </div>
-  `;
+  state.clienteCompleto = true;
+  actualizarResumenCliente();
 
   const modal = document.getElementById("modalDataCliente");
-  if (modal) {
-    modal.close(); // CORRECCIÓN: Quitamos el display = 'none' innecesario
+  if (modal && modal.open) {
+    modal.close();
+  }
+}
+
+//--- OMITIR DATOS DEL CLIENTE (SE COMPLETAN MÁS TARDE) ---//
+function omitirDatosCliente() {
+  state.clienteCompleto = false;
+  actualizarResumenCliente();
+
+  const modal = document.getElementById("modalDataCliente");
+  if (modal && modal.open) {
+    modal.close();
+  }
+}
+
+//--- ABRIR EL MODAL PARA COMPLETAR O EDITAR LOS DATOS DEL CLIENTE ---//
+function abrirModalCliente() {
+  const modal = document.getElementById("modalDataCliente");
+  if (modal && !modal.open) {
+    modal.showModal();
+  }
+}
+
+//--- PINTAR EL RESUMEN DEL CLIENTE (COMPLETO O PENDIENTE) ---//
+function actualizarResumenCliente() {
+  const data = document.getElementById("data-client");
+  if (!data) return;
+
+  if (state.clienteCompleto) {
+    const name = document.getElementById("nameClient").value.trim();
+    const secondName = document
+      .getElementById("secondNameClient")
+      .value.trim();
+    const documentID = document.getElementById("documentID").value.trim();
+    const numberPhone = document.getElementById("numberPhone").value.trim();
+
+    data.innerHTML = `
+      <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+        <div>
+          <p><strong>Cliente:</strong> ${name} ${secondName}</p>
+          <p><strong>C.I. / RIF:</strong> ${documentID}</p>
+          <p><strong>Teléfono:</strong> ${numberPhone}</p>
+        </div>
+        <button type="button" class="btn-secondary" onclick="abrirModalCliente()">
+          <i class="fas fa-pen"></i> Editar cliente
+        </button>
+      </div>
+    `;
+  } else {
+    data.innerHTML = `
+      <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+        <p><i class="fas fa-triangle-exclamation"></i> Datos del cliente pendientes</p>
+        <button type="button" class="btn-primary" onclick="abrirModalCliente()">
+          <i class="fas fa-user-plus"></i> Completar datos del cliente
+        </button>
+      </div>
+    `;
   }
 }
 
@@ -255,9 +303,9 @@ function actualizarTabla() {
   );
 
   let porcentajeDescuento = 0;
-  if (subTotalUSD > 100) porcentajeDescuento = 20;
-  else if (subTotalUSD > 50) porcentajeDescuento = 15;
-  else if (subTotalUSD > 10) porcentajeDescuento = 10;
+  if (subTotalUSD > 100) porcentajeDescuento = 25;
+  else if (subTotalUSD > 50) porcentajeDescuento = 20;
+  else if (subTotalUSD > 20) porcentajeDescuento = 15;
 
   state.descUSD = subTotalUSD * (porcentajeDescuento / 100);
   state.descBS = subTotalBS * (porcentajeDescuento / 100);
@@ -329,6 +377,14 @@ function calcularPrecioTotal() {
 
 //--- SECCIONES DE PAGO ---//
 function mostrarSeccionPago() {
+  if (!state.clienteCompleto) {
+    alert(
+      "Debes completar los datos del cliente antes de continuar con el pago.",
+    );
+    abrirModalCliente();
+    return;
+  }
+
   const seccionProducto = document.getElementById("seccionProducto");
   const seccionFactura = document.getElementById("seccionFactura");
   const seccionPago = document.getElementById("seccionPago");
@@ -529,6 +585,16 @@ function cerrarModalError() {
 async function finalizarCompra() {
   const boton = document.getElementById("btnFinalizarCompra");
   if (!boton) return;
+
+  // Verificación de seguridad: no debería llegarse aquí sin datos del
+  // cliente, pero se valida de nuevo por si el flujo cambia en el futuro.
+  if (!state.clienteCompleto) {
+    alert(
+      "Debes completar los datos del cliente antes de finalizar la compra.",
+    );
+    abrirModalCliente();
+    return;
+  }
 
   const metodoPagoSelect = document.getElementById("metodoPago");
   const metodoSeleccionado = metodoPagoSelect?.value;
