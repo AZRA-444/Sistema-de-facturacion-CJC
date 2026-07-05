@@ -21,6 +21,13 @@
     <dialog id="modalDataCliente" class="modal-container">
       <div class="modal-box">
         <h2>Datos del cliente <i class="fas fa-user"></i></h2>
+        <p class="payment-help-text">
+          <small
+            >Puedes omitir esto por ahora, pero deberás completarlo antes de
+            procesar el pago. También puedes editarlo en cualquier momento
+            desde el resumen de arriba.</small
+          >
+        </p>
 
         <div class="form-modal-grid">
           <label class="form-field">
@@ -81,6 +88,14 @@
             <a href="../../index.html" class="btn-secondary"
               ><i class="fas fa-arrow-left"></i>Volver</a
             >
+            <button
+              type="button"
+              id="btnOmitirCliente"
+              class="btn-secondary"
+              onclick="omitirDatosCliente()"
+            >
+              Omitir por ahora
+            </button>
             <button
               id="btnCerrarModal"
               class="btn-primary"
