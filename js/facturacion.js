@@ -442,6 +442,14 @@ function selectMetodoPago(valor) {
         <label class="form-field">Observaciones
           <textarea id="observacionesOTROS" rows="4" placeholder="Detalla alguna novedad..."></textarea>
         </label>
+        <div class="form-field capture-container" style="grid-column: 1 / -1;">
+          <span class="capture-label">Comprobante de Pago</span>
+          <input type="file" id="receiptCapture" accept="image/*" capture="environment" style="display: none;" onchange="previewReceipt(this)">
+          <button type="button" class="btn-secondary btn-capture" onclick="document.getElementById('receiptCapture').click()">
+            <i class="fas fa-camera"></i> Adjuntar o Tomar Foto
+          </button>
+          <div id="receiptPreview" class="receipt-preview-box" style="display: none;"></div>
+        </div>
       </div>
     `;
   }
@@ -522,7 +530,68 @@ async function finalizarCompra() {
   const boton = document.getElementById("btnFinalizarCompra");
   if (!boton) return;
 
-  const metodoSeleccionado = document.getElementById("metodoPago")?.value || "OTROS";
+  const metodoPagoSelect = document.getElementById("metodoPago");
+  const metodoSeleccionado = metodoPagoSelect?.value;
+
+  // ==========================================
+  // --- 1. VALIDACIONES DEL MÉTODO DE PAGO ---
+  // ==========================================
+
+  if (!metodoSeleccionado) {
+    alert("Por favor, seleccione un método de pago antes de finalizar la compra.");
+    return; // Detiene la ejecución
+  }
+
+  if (metodoSeleccionado === "PM") {
+    const banco = document.getElementById("bankSelect")?.value;
+    const referencia = document.getElementById("pmRef")?.value.trim();
+    const comprobante = document.getElementById("receiptCapture");
+    
+    if (!banco) {
+      alert("Para Pago Móvil, es obligatorio seleccionar un Banco Destino.");
+      return;
+    }
+    if (!referencia || referencia.length < 4) {
+      alert("Para Pago Móvil, debe ingresar un Número de Referencia (al menos los últimos 4 dígitos).");
+      return;
+    }
+    if (!comprobante || !comprobante.files || comprobante.files.length === 0) {
+      alert("Para Pago Móvil, es obligatorio adjuntar o tomar la foto del Comprobante de Pago.");
+      return;
+    }
+  } 
+  else if (metodoSeleccionado === "ED") {
+    const montoRecibido = Number(document.getElementById("EDMontoRecibido")?.value);
+    if (!montoRecibido || montoRecibido < state.montoFinalUSD) {
+      alert(`El monto recibido en efectivo ($) es inválido o menor al total a pagar ($${state.montoFinalUSD.toFixed(2)}).`);
+      return;
+    }
+  } 
+  else if (metodoSeleccionado === "EBS") {
+    const montoRecibido = Number(document.getElementById("EBSMontoRecibido")?.value);
+    if (!montoRecibido || montoRecibido < state.montoFinalBS) {
+      alert(`El monto recibido en efectivo (Bs) es inválido o menor al total a pagar (${state.montoFinalBS.toFixed(2)}Bs).`);
+      return;
+    }
+  }
+  else if (metodoSeleccionado === "OTROS") {
+    const observaciones = document.getElementById("observacionesOTROS")?.value.trim();
+    const comprobante = document.getElementById("receiptCapture");
+
+    if (!observaciones) {
+      alert("Para el método 'OTROS', es obligatorio ingresar las Observaciones detallando la novedad.");
+      return;
+    }
+  
+    if (!comprobante || !comprobante.files || comprobante.files.length === 0) {
+      alert("Para Pago Móvil, es obligatorio adjuntar o tomar la foto del Comprobante de Pago.");
+      return;
+    }
+  }
+
+  // ==========================================
+  // --- 2. PREPARACIÓN Y ENVÍO DE DATOS ------
+  // ==========================================
 
   const facturaData = {
     id_factura: "FAC-" + Date.now().toString().slice(-8),
@@ -540,7 +609,7 @@ async function finalizarCompra() {
     descuento_bs: state.descBS,
     total_bs: state.montoFinalBS,
 
-    metodo_pago: metodoSeleccionado,
+    metodo_pago: metodoSeleccionado || "OTROS",
     referencia: document.getElementById("pmRef")?.value || "N/A",
     banco: document.getElementById("bankSelect")?.value || "N/A",
 
@@ -591,6 +660,8 @@ async function finalizarCompra() {
 
   } catch (error) {
     console.error("Error en finalizarCompra:", error);
+    
+    document.getElementById("statusModal").classList.remove("hidden");
     mostrarModalError(error.message);
   } finally {
     boton.disabled = false;
