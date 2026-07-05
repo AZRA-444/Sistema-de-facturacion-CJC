@@ -6,7 +6,7 @@ from requests.adapters import HTTPAdapter, Retry
 
 URL_SUPABASE = os.environ.get("SUPABASE_URL", "")
 KEY_SUPABASE = os.environ.get("SUPABASE_SECRET_KEY", "")
-FRONTEND_DOMAIN = os.environ.get("FRONTEND_DOMAIN", "https://sistema-de-facturacion-bot-ws.vercel.app")
+FRONTEND_DOMAIN = os.environ.get("FRONTEND_DOMAIN", "https://sistema-de-facturacion-cjc.vercel.app")
 
 # Sesión con reintentos automáticos para fallos transitorios de red
 # (timeouts cortos, 502/503/504 puntuales, etc.)
