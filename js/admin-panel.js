@@ -376,31 +376,45 @@ async function calcularComisiones() {
 
   const queryFacturas = `${SUPABASE_URL}/rest/v1/facturas?select=vendedor,total_usd&${COL_FECHA}=gte.${primerDiaDelMes(mesVentas)}&${COL_FECHA}=lt.${primerDiaSiguienteMes(mesVentas)}`;
   const queryPagos = `${SUPABASE_URL}/rest/v1/comisiones_pagos?select=vendedor,pagado&mes=eq.${mesSeleccionado}`;
+  const queryConfig = `${SUPABASE_URL}/rest/v1/comisiones_config?select=vendedor,porcentaje,activo`;
 
   try {
-    const [resFacturas, resPagos] = await Promise.all([
+    const [resFacturas, resPagos, resConfig] = await Promise.all([
       fetch(queryFacturas, { headers }),
-      fetch(queryPagos, { headers })
+      fetch(queryPagos, { headers }),
+      fetch(queryConfig, { headers })
     ]);
 
     if (!resFacturas.ok) throw new Error("Error en ventas: " + resFacturas.status);
     if (!resPagos.ok) throw new Error("Error en pagos: " + resPagos.status);
+    if (!resConfig.ok) throw new Error("Error en configuración de comisiones: " + resConfig.status);
 
     const facturasData = await resFacturas.json();
     const pagosData = await resPagos.json();
+    const configData = await resConfig.json();
 
     const mapaPagos = {};
     pagosData.forEach(p => {
       if (p.vendedor) mapaPagos[p.vendedor.trim()] = p.pagado;
     });
 
+    // Porcentaje por vendedor (tabla comisiones_config). Si el vendedor no
+    // tiene fila, o está inactivo, se usa el 1% por defecto (COMISION_PORCENTAJE).
+    const mapaConfig = {};
+    configData.forEach(c => {
+      if (c.vendedor) mapaConfig[c.vendedor.trim()] = c;
+    });
+
     const porVendedor = {};
     facturasData.forEach((f) => {
       const v = f.vendedor ? f.vendedor.trim() : "Sin asignar";
       if (!porVendedor[v]) {
+        const cfg = mapaConfig[v];
+        const porcentaje = (cfg && cfg.activo !== false) ? Number(cfg.porcentaje) : COMISION_PORCENTAJE;
         porVendedor[v] = { 
           ventas: 0, 
           total: 0,
+          porcentaje,
           pagado: mapaPagos[v] !== undefined ? mapaPagos[v] : false 
         };
       }
@@ -412,7 +426,7 @@ async function calcularComisiones() {
       statusEl.textContent = `Mostrando comisiones acumuladas de [${mesVentas}]. Actualizado a las ${new Date().toLocaleTimeString("es-VE")}`;
     }
 
-    renderComisiones(porVendedor, mesSeleccionado);
+    renderComisiones(porVendedor, mesSeleccionado, mesVentas);
   } catch (err) {
     console.error(err);
     if (statusEl) {
@@ -422,7 +436,7 @@ async function calcularComisiones() {
   }
 }
 
-function renderComisiones(porVendedor, mesSeleccionado) {
+function renderComisiones(porVendedor, mesSeleccionado, mesVentas) {
   const tbody = document.getElementById("tbody-comisiones");
   const empty = document.getElementById("empty-comisiones");
   
@@ -443,22 +457,23 @@ function renderComisiones(porVendedor, mesSeleccionado) {
   vendedores
     .sort((a, b) => porVendedor[b].total - porVendedor[a].total)
     .forEach((v) => {
-      const comision = porVendedor[v].total * COMISION_PORCENTAJE;
+      const datos = porVendedor[v];
+      const comision = datos.total * datos.porcentaje;
       totalComisiones += comision;
       
-      const isPagada = porVendedor[v].pagado;
+      const isPagada = datos.pagado;
       if (!isPagada) pendiente += comision;
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${v}</td>
-        <td class="num">${porVendedor[v].ventas}</td>
-        <td class="num">${fmtUSD(porVendedor[v].total)}</td>
+        <td class="num">${datos.ventas}</td>
+        <td class="num">${fmtUSD(datos.total)}</td>
         <td class="num">${fmtUSD(comision)}</td>
         <td><span class="tag ${isPagada ? "" : "pend"}">${isPagada ? "Pagada" : "Pendiente"}</span></td>
         <td>
           <button class="btn small ${isPagada ? "ghost" : ""}" 
-                  onclick="togglePago('${v.replace(/'/g, "\\'")}', '${mesSeleccionado}', ${isPagada}, ${comision})">
+                  onclick="togglePago('${v.replace(/'/g, "\\'")}', '${mesSeleccionado}', ${isPagada}, ${comision}, '${mesVentas}', ${datos.total}, ${datos.porcentaje})">
             ${isPagada ? "Marcar pendiente" : "Marcar pagada"}
           </button>
         </td>`;
@@ -470,7 +485,7 @@ function renderComisiones(porVendedor, mesSeleccionado) {
   if (document.getElementById("kpi-com-pend")) document.getElementById("kpi-com-pend").textContent = fmtUSD(pendiente);
 }
 
-async function togglePago(vendedor, mesSeleccionado, estadoActual, montoCalculado) {
+async function togglePago(vendedor, mesSeleccionado, estadoActual, montoCalculado, mesVentas, totalVentas, porcentaje) {
   const statusEl = document.getElementById("status-comisiones");
   if (statusEl) statusEl.textContent = "Actualizando registro en Supabase…";
 
@@ -481,22 +496,50 @@ async function togglePago(vendedor, mesSeleccionado, estadoActual, montoCalculad
   const payload = {
     vendedor: vendedor,
     mes: mesSeleccionado,
+    mes_ventas: mesVentas,
+    total_ventas: Number(Number(totalVentas).toFixed(2)),
+    porcentaje: Number(porcentaje),
+    monto_comision: Number(Number(montoCalculado).toFixed(2)),
     pagado: nuevoEstado,
     fecha_pago: fechaPago,
     monto_pagado: Number(montoFinal)
   };
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/comisiones_pagos`, {
+    // on_conflict=vendedor,mes es necesario: es la restricción única real
+    // (uq_comisiones_pagos_vendedor_mes). Sin este parámetro, PostgREST
+    // intenta el merge sobre la primary key (id, siempre nueva) y termina
+    // insertando duplicados en vez de actualizar el registro existente.
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/comisiones_pagos?on_conflict=vendedor,mes`, {
       method: "POST",
       headers: {
         ...headers,
-        "Prefer": "resolution=merge-duplicates"
+        "Prefer": "resolution=merge-duplicates,return=representation"
       },
       body: JSON.stringify(payload)
     });
 
     if (!res.ok) throw new Error("Error en Supabase: " + res.status);
+
+    const rows = await res.json();
+    const comisionId = rows && rows[0] ? rows[0].id : null;
+
+    // Auditoría en comisiones_historial (best-effort: si falla, no rompe el flujo).
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/comisiones_historial`, {
+        method: "POST",
+        headers: { ...headers, "Prefer": "return=minimal" },
+        body: JSON.stringify({
+          comision_id: comisionId,
+          vendedor: vendedor,
+          mes: mesSeleccionado,
+          accion: nuevoEstado ? "marcada_pagada" : "marcada_pendiente",
+          monto: Number(montoFinal)
+        })
+      });
+    } catch (histErr) {
+      console.warn("No se pudo registrar el historial de comisiones:", histErr);
+    }
 
     await calcularComisiones();
   } catch (err) {
