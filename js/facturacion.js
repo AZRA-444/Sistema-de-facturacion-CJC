@@ -65,6 +65,7 @@ function inyectarEstilosAccionesProducto() {
       display: flex;
       gap: 6px;
       align-items: center;
+      padding: 5px;
     }
     .btn-toggle-desc {
       border: 1px solid var(--accent, #666);
