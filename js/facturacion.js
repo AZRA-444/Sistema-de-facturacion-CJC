@@ -51,7 +51,45 @@ window.addEventListener("DOMContentLoaded", () => {
   calcularPrecioTotal();
   inicializarTasa();
   configurarDelegacionEventos();
+  inyectarEstilosAccionesProducto();
 });
+
+//--- ESTILOS MÍNIMOS PARA LOS BOTONES DE ACCIÓN DE CADA PRODUCTO ---//
+function inyectarEstilosAccionesProducto() {
+  if (document.getElementById("estilos-acciones-producto")) return;
+
+  const style = document.createElement("style");
+  style.id = "estilos-acciones-producto";
+  style.textContent = `
+    .acciones-producto {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .btn-toggle-desc {
+      border: 1px solid var(--accent, #666);
+      background: transparent;
+      color: var(--accent, #666);
+      border-radius: 6px;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .btn-toggle-desc:hover {
+      background: var(--accent, #666);
+      color: #fff;
+    }
+    .btn-toggle-desc.active {
+      background: var(--accent, #666);
+      color: #fff;
+    }
+  `;
+  document.head.appendChild(style);
+}
 
 //--- FILTRADO Y FORMATEO DE DATOS ---//
 
@@ -256,6 +294,7 @@ function acceptProductData() {
     precioUnitarioBS: state.tasaConver * puProd,
     precioTotal: ptProd,
     precioTotalBS: state.tasaConver * ptProd,
+    excluidoDescuento: false,
   });
 
   actualizarTabla();
@@ -279,6 +318,7 @@ function actualizarTabla() {
 
   state.listaProductos.forEach((producto, index) => {
     const fila = document.createElement("tr");
+    const excluido = !!producto.excluidoDescuento;
     fila.innerHTML = `
       <td>${producto.cantidad}</td>
       <td>${producto.nombre}</td>
@@ -286,32 +326,62 @@ function actualizarTabla() {
       <td>${producto.precioUnitarioBS.toFixed(2)}Bs</td>
       <td>$${producto.precioTotal.toFixed(2)}</td>
       <td>${producto.precioTotalBS.toFixed(2)}Bs</td>
-      <td>
+      <td class="acciones-producto">
+        <button
+          class="btn-toggle-desc${excluido ? " active" : ""}"
+          data-index="${index}"
+          title="${excluido ? "Volver a incluir en el descuento" : "Sacar del descuento (se suma completo al total)"}"
+        >
+          <i class="fa-solid ${excluido ? "fa-rotate-left" : "fa-tag"}"></i>
+        </button>
         <button class="btn-eliminar" data-index="${index}"> <i class="fa-solid fa-trash"></i> </button>
       </td>
     `;
     tbody.appendChild(fila);
   });
 
-  const subTotalUSD = state.listaProductos.reduce(
+  const productosDescontables = state.listaProductos.filter(
+    (p) => !p.excluidoDescuento,
+  );
+  const productosExcluidos = state.listaProductos.filter(
+    (p) => p.excluidoDescuento,
+  );
+
+  const subTotalDescontableUSD = productosDescontables.reduce(
     (acc, p) => acc + p.precioTotal,
     0,
   );
-  const subTotalBS = state.listaProductos.reduce(
+  const subTotalDescontableBS = productosDescontables.reduce(
     (acc, p) => acc + p.precioTotalBS,
     0,
   );
 
+  const subTotalExcluidoUSD = productosExcluidos.reduce(
+    (acc, p) => acc + p.precioTotal,
+    0,
+  );
+  const subTotalExcluidoBS = productosExcluidos.reduce(
+    (acc, p) => acc + p.precioTotalBS,
+    0,
+  );
+
+  const subTotalUSD = subTotalDescontableUSD + subTotalExcluidoUSD;
+  const subTotalBS = subTotalDescontableBS + subTotalExcluidoBS;
+
+  // El porcentaje de descuento se calcula solo sobre lo que sí aplica a descuento
   let porcentajeDescuento = 0;
-  if (subTotalUSD > 150) porcentajeDescuento = 20;
-  else if (subTotalUSD > 50) porcentajeDescuento = 15;
-  else if (subTotalUSD > 10) porcentajeDescuento = 10;
+  if (subTotalDescontableUSD > 150) porcentajeDescuento = 20;
+  else if (subTotalDescontableUSD > 50) porcentajeDescuento = 15;
+  else if (subTotalDescontableUSD > 10) porcentajeDescuento = 10;
 
-  state.descUSD = subTotalUSD * (porcentajeDescuento / 100);
-  state.descBS = subTotalBS * (porcentajeDescuento / 100);
+  state.descUSD = subTotalDescontableUSD * (porcentajeDescuento / 100);
+  state.descBS = subTotalDescontableBS * (porcentajeDescuento / 100);
 
-  state.montoFinalUSD = subTotalUSD - state.descUSD;
-  state.montoFinalBS = subTotalBS - state.descBS;
+  // Los productos excluidos se suman completos (sin descuento) al total final
+  state.montoFinalUSD =
+    subTotalDescontableUSD - state.descUSD + subTotalExcluidoUSD;
+  state.montoFinalBS =
+    subTotalDescontableBS - state.descBS + subTotalExcluidoBS;
 
   const totalFinal = document.getElementById("totalesTabla");
   if (totalFinal) {
@@ -354,6 +424,17 @@ function configurarDelegacionEventos() {
       const index = parseInt(botonEliminar.getAttribute("data-index"), 10);
       state.listaProductos.splice(index, 1);
       actualizarTabla();
+      return;
+    }
+
+    const botonToggleDesc = e.target.closest(".btn-toggle-desc");
+    if (botonToggleDesc) {
+      const index = parseInt(botonToggleDesc.getAttribute("data-index"), 10);
+      const producto = state.listaProductos[index];
+      if (producto) {
+        producto.excluidoDescuento = !producto.excluidoDescuento;
+        actualizarTabla();
+      }
     }
   });
 }
