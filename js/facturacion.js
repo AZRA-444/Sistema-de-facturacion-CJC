@@ -303,9 +303,9 @@ function actualizarTabla() {
   );
 
   let porcentajeDescuento = 0;
-  if (subTotalUSD > 100) porcentajeDescuento = 25;
-  else if (subTotalUSD > 50) porcentajeDescuento = 20;
-  else if (subTotalUSD > 20) porcentajeDescuento = 15;
+  if (subTotalUSD > 150) porcentajeDescuento = 20;
+  else if (subTotalUSD > 50) porcentajeDescuento = 15;
+  else if (subTotalUSD > 10) porcentajeDescuento = 10;
 
   state.descUSD = subTotalUSD * (porcentajeDescuento / 100);
   state.descBS = subTotalBS * (porcentajeDescuento / 100);
