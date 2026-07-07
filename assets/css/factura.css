@@ -1,4 +1,3 @@
-
 :root {
   --factura-border: #d1d5db;
   --factura-border-strong: #111827;
@@ -130,7 +129,7 @@ body {
 
 .factura .empresa-top {
   display: flex;
-  align-items: center;
+  align-items: right;
   gap: 18px;
 }
 
@@ -168,7 +167,7 @@ body {
 .factura .header .folio {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: right;
   gap: 16px;
   flex-wrap: wrap;
   font-size: .82rem;
@@ -353,6 +352,7 @@ body {
   .factura .header .folio {
     text-align: right;
   }
+
 
   .factura .empresa-top {
     flex-direction: column;
