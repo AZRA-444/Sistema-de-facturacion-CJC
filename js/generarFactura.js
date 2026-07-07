@@ -90,9 +90,8 @@ async function cargarFactura() {
             factura.vendedor || "N/A";
 
         document.getElementById("fecha").textContent =
-            factura.fecha
-                ? new Date(factura.fecha).toLocaleString("es-VE")
-                : "N/A";
+            `${factura.created_at}`;
+            
 
         // =========================
         // TOTALES
@@ -178,3 +177,4 @@ document.addEventListener(
     "DOMContentLoaded",
     cargarFactura
 );
+
