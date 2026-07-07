@@ -1,3 +1,11 @@
+/* ============================================================
+   FACTURA.CSS
+   Estilo "documento fiscal" — hoja de papel, formal, imprimible.
+   Independiente del tema oscuro del resto del sitio a propósito
+   (una factura debe verse como una factura, no como la app).
+   Mobile-first: la base es la vista compacta de celular.
+   ============================================================ */
+
 :root {
   --factura-border: #d1d5db;
   --factura-border-strong: #111827;
@@ -117,31 +125,13 @@ body {
 }
 
 /* ---------- Cabecera ---------- */
-
 .factura .header {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   border-bottom: 2px solid var(--factura-border-strong);
   padding-bottom: 16px;
   margin-bottom: 20px;
-}
-
-.factura .empresa-top {
-  display: flex;
-  align-items: right;
-  gap: 18px;
-}
-
-.factura .logo {
-  width: 80px;
-  height: 80px;
-  object-fit: contain;
-  flex-shrink: 0;
-}
-
-.factura .empresa-info {
-  flex: 1;
 }
 
 .factura .header h1 {
@@ -158,6 +148,13 @@ body {
   line-height: 1.5;
 }
 
+.factura .logo {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .factura .header .empresa strong {
   display: block;
   font-size: .92rem;
@@ -165,11 +162,6 @@ body {
 }
 
 .factura .header .folio {
-  display: flex;
-  justify-content: space-between;
-  align-items: right;
-  gap: 16px;
-  flex-wrap: wrap;
   font-size: .82rem;
   color: var(--factura-text-muted);
 }
@@ -183,7 +175,7 @@ body {
   border: 1px solid var(--factura-border);
   border-radius: var(--factura-radius);
   padding: 6px 12px;
-  margin: 0;
+  margin: 0 0 6px;
   display: inline-block;
 }
 
@@ -351,22 +343,6 @@ body {
 
   .factura .header .folio {
     text-align: right;
-  }
-
-
-  .factura .empresa-top {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .factura .logo {
-    width: 70px;
-    height: 70px;
-  }
-
-  .factura .header .folio {
-    flex-direction: column;
-    align-items: flex-start;
   }
 
   .factura .info {
