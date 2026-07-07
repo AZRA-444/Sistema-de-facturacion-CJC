@@ -45,6 +45,15 @@ function fmtFecha(iso) {
   );
 }
 
+function formatDoc(input) {
+  let valor = input.value.replace(/\D/g, "");
+  if (!valor) {
+    input.value = "";
+    return;
+  }
+  input.value = new Intl.NumberFormat("es-VE").format(parseInt(valor, 10));
+}
+
 // ============================================================
 // RELOJ
 // ============================================================
@@ -346,7 +355,43 @@ async function verDetalle(idFactura) {
       ${productosHtml}
       <div class="row" style="border-top:2px solid var(--ink); margin-top:8px; font-weight:700;">
         <span>Total</span><span class="num">${fmtUSD(factura?.total_usd)} · Bs ${fmtBS(factura?.total_bs)}</span>
+      </div>
+      <h4 style="margin:14px 0 6px; font-family:var(--serif);">Comprobante de Pago</h4>
+      <div id="comprobante-container">
+        <p>Cargando comprobante…</p>
       </div>`;
+  }
+
+  await mostrarComprobante(factura?.comprobante_path);
+}
+
+// ============================================================
+// COMPROBANTE DE PAGO (imagen alojada en Supabase Storage)
+// ============================================================
+async function mostrarComprobante(comprobantePath) {
+  const container = document.getElementById("comprobante-container");
+  if (!container) return;
+
+  if (!comprobantePath) {
+    container.innerHTML = "<p>No se adjuntó comprobante de pago para esta factura.</p>";
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/obtener-comprobante?path=${encodeURIComponent(comprobantePath)}`);
+    const data = await res.json();
+
+    if (!res.ok || data.status === "error") {
+      throw new Error(data.message || "No se pudo cargar el comprobante");
+    }
+
+    container.innerHTML = `
+      <a href="${data.url}" target="_blank" rel="noopener noreferrer">
+        <img src="${data.url}" alt="Comprobante de pago" style="max-width:100%; max-height:400px; border-radius:8px; display:block; margin-top:6px; cursor: zoom-in;" />
+      </a>`;
+  } catch (err) {
+    console.error("Error al cargar el comprobante:", err);
+    container.innerHTML = `<p class="error">No se pudo cargar el comprobante: ${err.message}</p>`;
   }
 }
 document.getElementById("modal-detalle-close")?.addEventListener("click", () => {
