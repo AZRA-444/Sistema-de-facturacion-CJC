@@ -89,8 +89,15 @@ async function cargarFactura() {
         document.getElementById("vendedor").textContent =
             factura.vendedor || "N/A";
 
-        document.getElementById("fecha").textContent =
-            `${factura.created_at}`;
+        const fecha = new Date(factura.created_at);
+
+        document.getElementById("fecha").textContent =  
+            fecha.toLocaleDateString("es-VE", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric"
+            });
+            
             
 
         // =========================
