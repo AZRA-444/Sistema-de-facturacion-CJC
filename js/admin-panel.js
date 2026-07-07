@@ -368,7 +368,7 @@ async function verDetalle(idFactura) {
 // ============================================================
 // COMPROBANTE DE PAGO (imagen alojada en Supabase Storage)
 // ============================================================
-async function mostrarComprobante(comprobantePath) {
+function mostrarComprobante(comprobantePath) {
   const container = document.getElementById("comprobante-container");
   if (!container) return;
 
@@ -377,27 +377,13 @@ async function mostrarComprobante(comprobantePath) {
     return;
   }
 
-  try {
-    const res = await fetch(`/api/obtener-comprobante?path=${encodeURIComponent(comprobantePath)}`);
-    const data = await res.json();
+  const url = `${SUPABASE_URL}/storage/v1/object/public/comprobantes/${comprobantePath}`;
 
-    if (!res.ok || data.status === "error") {
-      throw new Error(data.message || "No se pudo cargar el comprobante");
-    }
-
-    container.innerHTML = `
-      <a href="${data.url}" target="_blank" rel="noopener noreferrer">
-        <img src="${data.url}" alt="Comprobante de pago" style="max-width:100%; max-height:400px; border-radius:8px; display:block; margin-top:6px; cursor: zoom-in;" />
-      </a>`;
-  } catch (err) {
-    console.error("Error al cargar el comprobante:", err);
-    container.innerHTML = `<p class="error">No se pudo cargar el comprobante: ${err.message}</p>`;
-  }
+  container.innerHTML = `
+    <a href="${url}" target="_blank" rel="noopener noreferrer">
+      <img src="${url}" alt="Comprobante de pago" style="max-width:100%; max-height:400px; border-radius:8px; display:block; margin-top:6px; cursor: zoom-in;" onerror="this.parentElement.parentElement.innerHTML='<p>No se pudo cargar la imagen del comprobante.</p>'" />
+    </a>`;
 }
-document.getElementById("modal-detalle-close")?.addEventListener("click", () => {
-  document.getElementById("modal-detalle").classList.remove("active");
-});
-
 // ============================================================
 // COMISIONES — Sincronizado con Supabase y Ajustado a Mes Anterior
 // ============================================================
