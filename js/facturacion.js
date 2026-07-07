@@ -1,4 +1,4 @@
-//--- VARIABLES DE ESTADO (Encapsuladas en un objeto para evitar contaminación global) ---//
+//--- VARIABLES DE ESTADO ---//
 const state = {
   listaProductos: [],
   tasaConver: 0,
@@ -37,8 +37,6 @@ window.addEventListener("DOMContentLoaded", () => {
   if (modal) {
     modal.showModal();
 
-    // Si el usuario cierra el modal con la tecla ESC, se trata igual que
-    // "Omitir por ahora": puede continuar, pero los datos quedarán pendientes.
     modal.addEventListener("cancel", (event) => {
       event.preventDefault();
       omitirDatosCliente();
@@ -642,6 +640,16 @@ function previewReceipt(input) {
   }
 }
 
+//--- CONVERTIR ARCHIVO A BASE64 (sin el prefijo "data:image/...;base64,") ---//
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function mostrarModalCargando() {
   document.getElementById("statusModal").classList.remove("hidden");
   document.getElementById("modalLoading").classList.remove("hidden");
@@ -741,6 +749,30 @@ async function finalizarCompra() {
   // --- 2. PREPARACIÓN Y ENVÍO DE DATOS ------
   // ==========================================
 
+  // Convertir el comprobante a base64 (si el usuario adjuntó uno)
+  const comprobanteInputFinal = document.getElementById("receiptCapture");
+  let comprobanteBase64 = null;
+  let comprobanteNombre = null;
+  let comprobanteTipo = null;
+
+  if (comprobanteInputFinal?.files?.[0]) {
+    const file = comprobanteInputFinal.files[0];
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("La imagen del comprobante no debe superar los 5MB.");
+      return;
+    }
+
+    try {
+      comprobanteBase64 = await fileToBase64(file);
+      comprobanteNombre = file.name;
+      comprobanteTipo = file.type;
+    } catch (err) {
+      alert("No se pudo procesar la imagen del comprobante.");
+      return;
+    }
+  }
+
   const facturaData = {
     id_factura: "FAC-" + Date.now().toString().slice(-8),
     nombre: document.getElementById("nameClient")?.value.trim() || "Consumidor Final",
@@ -760,6 +792,11 @@ async function finalizarCompra() {
     metodo_pago: metodoSeleccionado || "OTROS",
     referencia: document.getElementById("pmRef")?.value || "N/A",
     banco: document.getElementById("bankSelect")?.value || "N/A",
+
+    // Comprobante de pago (imagen)
+    comprobante_base64: comprobanteBase64,
+    comprobante_nombre: comprobanteNombre,
+    comprobante_tipo: comprobanteTipo,
 
     // Productos con estructura exacta que espera el backend
     productos: state.listaProductos.map(p => ({
