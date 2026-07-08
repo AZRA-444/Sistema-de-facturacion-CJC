@@ -130,7 +130,7 @@ function renderFacturasRecientes(facturas) {
 // MODAL DETALLE
 // ============================================================
 async function verDetalle(idFactura) {
-  const factura = (window.__facturasActuales || []).find((f) => f.id_factura === idFactura);
+  const factura = (window.__facturasRecientes || []).find((f) => f.id_factura === idFactura);
   const titleEl = document.getElementById("modal-detalle-title");
   const body = document.getElementById("modal-detalle-body");
   const modal = document.getElementById("modal-detalle");
@@ -144,7 +144,7 @@ async function verDetalle(idFactura) {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/factura_detalles?id_factura=eq.${encodeQueryValue(idFactura)}&select=nombre_producto,cantidad,precio_total`, { headers });
     if (res.ok) {
       const productos = await res.json();
-      
+
       productosHtml = productos.length
         ? productos.map((p) => {
               const nombre = p.nombre_producto || "Producto sin nombre";
@@ -175,14 +175,8 @@ async function verDetalle(idFactura) {
       ${productosHtml}
       <div class="row" style="border-top:2px solid var(--ink); margin-top:8px; font-weight:700;">
         <span>Total</span><span class="num">${fmtUSD(factura?.total_usd)} · Bs ${fmtBS(factura?.total_bs)}</span>
-      </div>
-      <h4 style="margin:14px 0 6px; font-family:var(--serif);">Comprobante de Pago</h4>
-      <div id="comprobante-container">
-        <p>Cargando comprobante…</p>
       </div>`;
   }
-
-  await mostrarComprobante(factura?.comprobante_path);
 }
 document.getElementById("modal-detalle-close")?.addEventListener("click", () => {
   document.getElementById("modal-detalle").classList.remove("active");
