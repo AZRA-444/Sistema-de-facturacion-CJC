@@ -650,6 +650,60 @@ function fileToBase64(file) {
   });
 }
 
+// --- COMPRIMIR/REDIMENSIONAR LA FOTO DEL COMPROBANTE ANTES DE ENVIARLA ---//
+function comprimirImagenComprobante(file, maxAncho = 1600, calidad = 0.75) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("El archivo no es una imagen"));
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      let { width, height } = img;
+      if (width > maxAncho) {
+        height = Math.round((height * maxAncho) / width);
+        width = maxAncho;
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("No se pudo preparar el lienzo de compresión"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("No se pudo comprimir la imagen"));
+            return;
+          }
+          const nombreComprimido = file.name.replace(/\.\w+$/, "") + ".jpg";
+          resolve(new File([blob], nombreComprimido, { type: "image/jpeg" }));
+        },
+        "image/jpeg",
+        calidad
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("No se pudo leer la imagen seleccionada"));
+    };
+
+    img.src = url;
+  });
+}
+
 function mostrarModalCargando() {
   document.getElementById("statusModal").classList.remove("hidden");
   document.getElementById("modalLoading").classList.remove("hidden");
@@ -756,7 +810,16 @@ async function finalizarCompra() {
   let comprobanteTipo = null;
 
   if (comprobanteInputFinal?.files?.[0]) {
-    const file = comprobanteInputFinal.files[0];
+    let file = comprobanteInputFinal.files[0];
+
+    try {
+      file = await comprimirImagenComprobante(file);
+    } catch (err) {
+      // Si no se pudo comprimir (formato raro, navegador viejo, etc.), se
+      // sigue con el archivo tal cual llegó; la validación de tamaño de
+      // abajo decide si de todas formas se puede enviar.
+      console.warn("No se pudo comprimir el comprobante, se usará el original:", err);
+    }
 
     if (file.size > 5 * 1024 * 1024) {
       alert("La imagen del comprobante no debe superar los 5MB.");
