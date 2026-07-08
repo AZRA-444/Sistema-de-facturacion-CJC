@@ -82,6 +82,9 @@
       <button type="submit" class="btn" id="btn-login">
         <i class="fas fa-right-to-bracket"></i> Entrar
       </button>
+      <button type="submit" class="btn" id="btn-volver" onclick="volver()">
+        <i class="fas fa-arrow-left"></i> volver
+      </button>
 
       <p id="login-error"></p>
     </form>
@@ -121,6 +124,10 @@
 
         window.location.href = "administrador.html";
       });
+
+      function volver() {
+        window.location.href = "../../index.html";
+      }
     </script>
   </body>
 </html>
