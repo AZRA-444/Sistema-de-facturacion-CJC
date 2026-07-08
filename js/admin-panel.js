@@ -1,8 +1,5 @@
 // ============================================================
 // CONFIGURACIÓN SUPABASE
-// (SUPABASE_URL y SUPABASE_ANON_KEY ahora viven en js/supabase-config.js,
-// que debe cargarse ANTES que este archivo, para no repetir la clave en
-// cada script y facilitar rotarla si hace falta)
 // ============================================================
 const COL_FECHA = "created_at";
 
@@ -625,6 +622,17 @@ document.addEventListener("click", (e) => {
 // ============================================================
 // EVENTOS Y ARRANQUE
 // ============================================================
+document.getElementById("modal-detalle-close")?.addEventListener("click", () => {
+  document.getElementById("modal-detalle")?.classList.remove("active");
+});
+
+// Cerrar también al hacer click fuera del cuadro del modal (en el fondo oscuro)
+document.getElementById("modal-detalle")?.addEventListener("click", (e) => {
+  if (e.target.id === "modal-detalle") {
+    e.currentTarget.classList.remove("active");
+  }
+});
+
 document.getElementById("btn-buscar")?.addEventListener("click", buscarFacturas);
 document.getElementById("btn-limpiar")?.addEventListener("click", () => {
   ["f-mes", "f-dia", "f-cedula", "f-vendedor", "f-id"].forEach((id) => {
