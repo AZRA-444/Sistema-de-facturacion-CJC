@@ -198,3 +198,7 @@ document.getElementById("btn-refrescar-recientes")?.addEventListener("click", bu
   // Mantiene el panel de "Facturas de hoy" actualizado sin recargar la página
   setInterval(buscarFacturasHoy, 60000);
 })();
+
+function cerrar() {
+  window.location.href = "../../index.html";
+};
